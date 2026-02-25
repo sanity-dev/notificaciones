@@ -34,6 +34,10 @@ services:
       - SPRING_DATASOURCE_URL=${DB_URL}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      
+      # Azure Communication Services (Email)
+      - ACS_CONNECTION_STRING=${ACS_CONNECTION_STRING}
+      - ACS_SENDER_EMAIL=${ACS_SENDER_EMAIL}
 
       # SOLUCIÓN AL ERROR: Pasamos las variables conflictivas como JSON
       # Esto inyecta jwt.secret y jwt.expiration correctamente en tu JwtService.java

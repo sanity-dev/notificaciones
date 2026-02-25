@@ -43,10 +43,9 @@ public class SecurityConfig {
                         // RUTAS PÚBLICAS (Permitir entrar sin token)
                         .requestMatchers("/api/auth/login", "/api/usuarios/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll() // Permitir registrarse
-
-                        // TODO: TEMPORAL - Quitar esto cuando el microservicio de autenticación esté
-                        // listo
-                        // .requestMatchers("/notificaciones/**").permitAll()
+                        .requestMatchers("/api/auth/recuperar", "/api/auth/resetear").permitAll() // Recuperación de
+                                                                                                  // contraseña
+                        .requestMatchers("/notificaciones/**").permitAll() // Notificaciones (temporal)
 
                         // RUTAS PRIVADAS (Todo lo demás requiere token)
                         .anyRequest().authenticated())

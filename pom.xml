@@ -75,6 +75,11 @@
 			<artifactId>spring-dotenv</artifactId>
 			<version>4.0.0</version>
 		</dependency>
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-communication-email</artifactId>
+			<version>1.0.15</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

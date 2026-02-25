@@ -1,9 +1,7 @@
 package com.example.microservicionotificaciones.modelos;
 
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.List;
 import java.util.UUID;
 
 @Entity

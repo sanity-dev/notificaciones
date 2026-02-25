@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,11 +35,24 @@ public class UsuarioService {
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
+    @Autowired
+    private EmailService emailService;
+
     // --- REGISTRAR USUARIO ---
     public Usuario createUsuario(Usuario usuario) {
         // Encriptamos la contraseña antes de guardar
         usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
-        return usuarioRepository.save(usuario);
+        Usuario nuevoUsuario = usuarioRepository.save(usuario);
+
+        // Enviar email de bienvenida (no bloqueante)
+        try {
+            emailService.enviarEmailBienvenida(nuevoUsuario.getEmail(), nuevoUsuario.getNombre());
+        } catch (Exception e) {
+            // Log del error pero no bloquear el registro
+            System.err.println("Error al enviar email de bienvenida: " + e.getMessage());
+        }
+
+        return nuevoUsuario;
     }
 
     // --- LOGIN (Generar Token) ---
