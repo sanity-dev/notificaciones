@@ -1,35 +1,38 @@
-# 1. ETAPA DE CONSTRUCCIÓN (BUILD)
-FROM eclipse-temurin:17-jdk-jammy AS build
+# Etapa 1: Compilación (Build)
+# Utilizamos una imagen de Maven con Eclipse Temurin (JDK 17) para compilar el código.
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+
+# Establecemos el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Primero copiamos el pom.xml y descargamos las dependencias
+# (Aprovechamos la caché de Docker para no tener que bajarlas de nuevo si el POM no ha cambiado)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Ahora copiamos el resto del código fuente
+COPY src/ ./src/
+
+# Compilamos el proyecto, saltándonos las pruebas para agilizar el proceso
+RUN mvn clean package -DskipTests
+
+# -----------------------------------------------------------------------------
+
+# Etapa 2: Ejecución (Run)
+# Empleamos una imagen muchísimo más ligera que solo contiene el JRE (Runtime) y no las herramientas de desarrollo.
+FROM eclipse-temurin:17-jre-alpine
+
+# Creamos un usuario sin privilegios de root por seguridad
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
 WORKDIR /app
 
-# Copiamos archivos del wrapper y pom.xml primero para aprovechar caché
-COPY .mvn/ .mvn
-COPY mvnw pom.xml ./
+# Copiamos de la "Etapa 1" únicamente el archivo JAR generado
+COPY --from=builder /app/target/microservicio-notificaciones-app.jar app.jar
 
-# Damos permisos de ejecución al wrapper
-RUN sed -i 's/\r$//' mvnw
-RUN chmod +x mvnw
+# Informamos el puerto sobre el que escucha la aplicación (Documental, pero buena práctica)
+EXPOSE 8080
 
-# Descargamos dependencias (esto se cacheará si no cambia el pom.xml)
-RUN ./mvnw dependency:go-offline
-
-# Copiamos el código fuente
-COPY src ./src
-
-# Empaquetamos la aplicación
-RUN ./mvnw clean package -DskipTests
-
-# 2. ETAPA DE EJECUCIÓN (PRODUCTION)
-FROM eclipse-temurin:17-jre-jammy
-
-WORKDIR /app
-
-# Exponemos el puerto
-EXPOSE 8082
-
-# Copiamos el JAR generado
-COPY --from=build /app/target/*.jar app.jar
-
-# Comando de ejecución
+# Comando para ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]

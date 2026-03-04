@@ -5,10 +5,12 @@ import com.azure.communication.email.EmailClientBuilder;
 import com.azure.communication.email.models.EmailMessage;
 import com.azure.communication.email.models.EmailSendResult;
 import com.azure.core.util.polling.SyncPoller;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class EmailService {
 
     private final EmailClient emailClient;
@@ -29,14 +31,20 @@ public class EmailService {
      * Enviar email genérico
      */
     public void enviarEmail(String destinatario, String asunto, String contenidoHtml) {
-        EmailMessage emailMessage = new EmailMessage()
-                .setSenderAddress(senderEmail)
-                .setToRecipients(destinatario)
-                .setSubject(asunto)
-                .setBodyHtml(contenidoHtml);
+        try {
+            EmailMessage emailMessage = new EmailMessage()
+                    .setSenderAddress(senderEmail)
+                    .setToRecipients(destinatario)
+                    .setSubject(asunto)
+                    .setBodyHtml(contenidoHtml);
 
-        SyncPoller<EmailSendResult, EmailSendResult> poller = emailClient.beginSend(emailMessage);
-        poller.waitForCompletion();
+            SyncPoller<EmailSendResult, EmailSendResult> poller = emailClient.beginSend(emailMessage);
+            poller.waitForCompletion();
+            log.info("Email genérico enviado a: {}", destinatario);
+        } catch (Exception e) {
+            log.error("Fallo al enviar correo a {}. Motivo: {}", destinatario, e.getMessage(), e);
+            throw e; // Lanza para que sea capturado en NotificacionService
+        }
     }
 
     /**

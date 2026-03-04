@@ -1,11 +1,20 @@
-.git
-.gitignore
-.gitattributes
-.idea
-.vscode
-target
-*.md
-!GUIA_DOCKER.md
-.env
-*.iml
+# Ignore Maven build output
+target/
 
+# Ignore IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# Ignore environment files
+.env
+.env.*
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log

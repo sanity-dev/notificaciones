@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/recuperar", "/api/auth/resetear").permitAll() // Recuperación de
                                                                                                   // contraseña
                         .requestMatchers("/notificaciones/**").permitAll() // Notificaciones (temporal)
+                        .requestMatchers("/error").permitAll() // <-- Permitir ver los errores reales (ej. correo
+                                                               // duplicado)
 
                         // RUTAS PRIVADAS (Todo lo demás requiere token)
                         .anyRequest().authenticated())

@@ -3,6 +3,7 @@ package com.example.microservicionotificaciones.modelos;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Notificaciones")
@@ -13,7 +14,7 @@ public class Notificacion {
     private Integer id;
 
     @Column(name = "usuario_id", nullable = false)
-    private Integer usuarioId;
+    private UUID usuarioId;
 
     @Column(length = 100)
     private String titulo;
