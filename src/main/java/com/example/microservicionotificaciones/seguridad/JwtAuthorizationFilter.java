@@ -57,22 +57,28 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         // 4. Si hay email y el usuario no está autenticado todavía en el contexto
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            // Cargar datos del usuario desde la BD
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+            try {
+                // Cargar datos del usuario desde la BD
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-            // 5. Validar el token
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                // Crear objeto de autenticación
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities());
+                // 5. Validar el token
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    // Crear objeto de autenticación
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities());
 
-                // Añadir detalles de la petición
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // Añadir detalles de la petición
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // 6. ESTABLECER LA AUTENTICACIÓN FINAL (Login exitoso para esta petición)
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // 6. ESTABLECER LA AUTENTICACIÓN FINAL (Login exitoso para esta petición)
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (Exception e) {
+                // Si el usuario no existe en este microservicio pero el token es válido,
+                // el gateway ya lo dejó pasar. Podríamos simplemente loguear la advertencia.
+                // logger.warn("Usuario autenticado no encontrado localmente: " + userEmail);
             }
         }
 

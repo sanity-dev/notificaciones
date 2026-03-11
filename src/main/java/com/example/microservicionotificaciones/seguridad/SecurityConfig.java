@@ -34,46 +34,25 @@ public class SecurityConfig {
     private UserDetailsServiceImpl userDetailsService;
 
     // 1. Configuración de la cadena de filtros de seguridad
+    // La validación JWT la realiza el API Gateway, que inyecta el header
+    // X-User-Email.
+    // Por eso permitimos todas las peticiones aquí (el Gateway es el guardián).
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Habilitar CORS
+                .cors(cors -> cors.disable()) // CORS lo maneja el API Gateway
                 .csrf(AbstractHttpConfigurer::disable) // Desactivar CSRF para APIs REST
                 .authorizeHttpRequests(authz -> authz
-                        // RUTAS PÚBLICAS (Permitir entrar sin token)
-                        .requestMatchers("/api/auth/login", "/api/usuarios/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll() // Permitir registrarse
-                        .requestMatchers("/api/auth/recuperar", "/api/auth/resetear").permitAll() // Recuperación de
-                                                                                                  // contraseña
-                        .requestMatchers("/notificaciones/**").permitAll() // Notificaciones (temporal)
-                        .requestMatchers("/error").permitAll() // <-- Permitir ver los errores reales (ej. correo
-                                                               // duplicado)
-
-                        // RUTAS PRIVADAS (Todo lo demás requiere token)
-                        .anyRequest().authenticated())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No guardar sesión en memoria (usamos
-                                                                                // Token)
+                        .anyRequest().permitAll() // El API Gateway ya valida JWT
                 )
-                .authenticationProvider(authenticationProvider())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // 2. Configuración de CORS (Permitir peticiones del frontend Angular)
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+    // 2. CORS deshabilitado a nivel microservicio (Manejado por API Gateway)
 
     // 3. Configuración del Encriptador de Contraseñas (BCrypt)
     @Bean

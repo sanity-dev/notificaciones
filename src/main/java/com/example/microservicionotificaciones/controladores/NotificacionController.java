@@ -1,7 +1,9 @@
 package com.example.microservicionotificaciones.controladores;
 
 import com.example.microservicionotificaciones.modelos.Notificacion;
+import com.example.microservicionotificaciones.modelos.Usuario;
 import com.example.microservicionotificaciones.servicios.NotificacionService;
+import com.example.microservicionotificaciones.seguridad.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,16 +13,60 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/notificaciones")
+@RequestMapping("/api/notifications")
 @Slf4j
 public class NotificacionController {
 
     @Autowired
     private NotificacionService notificacionService;
 
+    @Autowired
+    private com.example.microservicionotificaciones.repositorios.UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @GetMapping("/me")
+    public ResponseEntity<List<Notificacion>> obtenerMisNotificaciones(
+            @RequestHeader(value = "X-User-Email", required = false) String userEmail,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // 1. Intentar obtener email del header del Gateway
+        String email = userEmail;
+
+        // 2. Si no hay header del gateway, intentar extraer del JWT directamente
+        if (email == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                email = jwtService.extractUsername(token);
+            } catch (Exception e) {
+                log.warn("No se pudo extraer email del JWT: {}", e.getMessage());
+            }
+        }
+
+        if (email == null || email.isBlank()) {
+            log.warn("Intento de acceso a notificaciones sin identificación de usuario");
+            return ResponseEntity.status(401).build();
+        }
+
+        log.info("Obteniendo notificaciones para el usuario: {}", email);
+
+        Optional<Usuario> optUsuario = usuarioRepository.findByEmail(email);
+        if (optUsuario.isPresent()) {
+            Usuario usuario = optUsuario.get();
+            log.info("Usuario encontrado en BD local. ID: {}", usuario.getId());
+            return ResponseEntity.ok(notificacionService.obtenerPorUsuario(usuario.getId()));
+        } else {
+            log.warn("Usuario con email {} no existe en la base de datos local de NOTIFICACIONES.", email);
+            // Devolvemos una lista vacía en vez de 404 para no romper el frontend
+            // mientras se sincronizan los usuarios.
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
+    }
+
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Notificacion>> obtenerPorUsuario(@PathVariable UUID usuarioId) {
-        log.info("Obteniendo notificaciones para el usuario: {}", usuarioId);
+        log.info("Obteniendo notificaciones para el usuario solicitado: {}", usuarioId);
         return ResponseEntity.ok(notificacionService.obtenerPorUsuario(usuarioId));
     }
 
