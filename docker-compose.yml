@@ -31,16 +31,16 @@ services:
       - .env
     environment:
       # Pasamos la conexión de Azure directa a Spring
-      - SPRING_DATASOURCE_URL=${DB_URL}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      
-      # Azure Communication Services (Email)
-      - ACS_CONNECTION_STRING=${ACS_CONNECTION_STRING}
-      - ACS_SENDER_EMAIL=${ACS_SENDER_EMAIL}
+      # URL JDBC Completa (Esto es lo que Java necesita)
+      - DB_URL=jdbc:sqlserver://sanity.database.windows.net:1433;database=notificaciones-db;user=Admin123@sanity;password=Password$;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;
 
-      # SOLUCIÓN AL ERROR: Pasamos las variables conflictivas como JSON
-      # Esto inyecta jwt.secret y jwt.expiration correctamente en tu JwtService.java
-      - SPRING_APPLICATION_JSON={"jwt.secret":"${JWT_SECRET}", "jwt.expiration":"${JWT_EXPIRATION}"}
+      # Usuario y Contraseña mapeados a las variables correctas
+      - DB_USERNAME=Admin123@sanity
+      - DB_PASSWORD=Password$
+
+      # Seguridad JWT
+      - JWT_SECRET=B8/aV2WyX9TCH+r0hLSOdZI4f5k6bEwnxJ3qM/o2u+A3cR9gHIV7yK0pLwU8iZ/jl+eS6wY5nB7tD/fRz8kE/g==
+      # Valor en milisegundos (ejemplo: 1 día = 86400000)
+      - JWT_EXPIRATION=86400000
 
     restart: unless-stopped
