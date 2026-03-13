@@ -1,10 +1,9 @@
 package com.example.microservicionotificaciones.servicios;
 
-import com.azure.communication.email.EmailClient;
-import com.azure.communication.email.EmailClientBuilder;
-import com.azure.communication.email.models.EmailMessage;
-import com.azure.communication.email.models.EmailSendResult;
-import com.azure.core.util.polling.SyncPoller;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -13,37 +12,36 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmailService {
 
-    private final EmailClient emailClient;
+    private final JavaMailSender mailSender;
 
-    @Value("${azure.communication.sender-email}")
+    @Value("${spring.mail.username}")
     private String senderEmail;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public EmailService(@Value("${azure.communication.connection-string}") String connectionString) {
-        this.emailClient = new EmailClientBuilder()
-                .connectionString(connectionString)
-                .buildClient();
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
     }
 
     /**
-     * Enviar email genérico
+     * Enviar email genérico con contenido HTML
      */
     public void enviarEmail(String destinatario, String asunto, String contenidoHtml) {
         try {
-            EmailMessage emailMessage = new EmailMessage()
-                    .setSenderAddress(senderEmail)
-                    .setToRecipients(destinatario)
-                    .setSubject(asunto)
-                    .setBodyHtml(contenidoHtml);
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
-            SyncPoller<EmailSendResult, EmailSendResult> poller = emailClient.beginSend(emailMessage);
-            poller.waitForCompletion();
-            log.info("Email genérico enviado a: {}", destinatario);
-        } catch (Exception e) {
+            helper.setFrom(senderEmail);
+            helper.setTo(destinatario);
+            helper.setSubject(asunto);
+            helper.setText(contenidoHtml, true); // true = es HTML
+
+            mailSender.send(mimeMessage);
+            log.info("Email enviado exitosamente a: {}", destinatario);
+        } catch (MessagingException e) {
             log.error("Fallo al enviar correo a {}. Motivo: {}", destinatario, e.getMessage(), e);
-            throw e; // Lanza para que sea capturado en NotificacionService
+            throw new RuntimeException("Error al enviar correo", e);
         }
     }
 

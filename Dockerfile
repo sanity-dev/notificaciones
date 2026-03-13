@@ -32,7 +32,7 @@ WORKDIR /app
 COPY --from=builder /app/target/microservicio-notificaciones-app.jar app.jar
 
 # Informamos el puerto sobre el que escucha la aplicación (Documental, pero buena práctica)
-EXPOSE 8080
+EXPOSE 8085
 
 # Comando para ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]

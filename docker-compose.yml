@@ -43,4 +43,10 @@ services:
       # Valor en milisegundos (ejemplo: 1 día = 86400000)
       - JWT_EXPIRATION=86400000
 
+      # Configuración SMTP (Email)
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=sanity.ayuda@gmail.com
+      - SMTP_PASSWORD=chofgpxkhtclhvrt
+
     restart: unless-stopped
