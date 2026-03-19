@@ -3,6 +3,7 @@ package com.example.microservicionotificaciones.servicios;
 import com.example.microservicionotificaciones.dto.LoginRequestDTO;
 import com.example.microservicionotificaciones.dto.LoginResponseDTO;
 import com.example.microservicionotificaciones.modelos.Usuario;
+import com.example.microservicionotificaciones.dto.PreferenciasDTO;
 import com.example.microservicionotificaciones.repositorios.UsuarioRepository;
 import com.example.microservicionotificaciones.seguridad.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,5 +81,22 @@ public class UsuarioService {
     // Método auxiliar para listar todos (opcional)
     public List<Usuario> getAllUsuarios() {
         return usuarioRepository.findAll();
+    }
+
+    // --- ACTUALIZAR PREFERENCIAS ---
+    public Usuario updatePreferencias(String id, PreferenciasDTO dto) {
+        Optional<Usuario> optionalUsuario = usuarioRepository.findById(id);
+        if (optionalUsuario.isPresent()) {
+            Usuario usuario = optionalUsuario.get();
+            usuario.setPushEnabled(dto.isPushEnabled());
+            usuario.setEmailEnabled(dto.isEmailEnabled());
+            usuario.setRecordatoriosCitas(dto.isRecordatoriosCitas());
+            usuario.setRecordatoriosActividades(dto.isRecordatoriosActividades());
+            usuario.setRecordatoriosHabitos(dto.isRecordatoriosHabitos());
+            usuario.setNuevasActividades(dto.isNuevasActividades());
+            usuario.setMensajesIa(dto.isMensajesIa());
+            return usuarioRepository.save(usuario);
+        }
+        throw new RuntimeException("Usuario no encontrado con ID: " + id);
     }
 }

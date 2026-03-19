@@ -22,6 +22,8 @@ public class Usuario {
 
     private String rol = "USUARIO";
 
+
+
     // --- CONSTRUCTORES ---
     public Usuario() {
     }
@@ -65,5 +67,82 @@ public class Usuario {
 
     public void setRol(String rol) {
         this.rol = rol;
+    }
+
+    @Column(name = "push_enabled")
+    private Boolean pushEnabled = true;
+
+    @Column(name = "email_enabled")
+    private Boolean emailEnabled = true;
+
+    @Column(name = "recordatorios_citas")
+    private Boolean recordatoriosCitas = true;
+
+    @Column(name = "recordatorios_actividades")
+    private Boolean recordatoriosActividades = true;
+
+    @Column(name = "recordatorios_habitos")
+    private Boolean recordatoriosHabitos = true;
+
+    @Column(name = "nuevas_actividades")
+    private Boolean nuevasActividades = false;
+
+    @Column(name = "mensajes_ia")
+    private Boolean mensajesIa = true;
+
+    public boolean isPushEnabled() {
+        return pushEnabled != null ? pushEnabled : true;
+    }
+
+    public void setPushEnabled(Boolean pushEnabled) {
+        this.pushEnabled = pushEnabled;
+    }
+
+    public boolean isEmailEnabled() {
+        return emailEnabled != null ? emailEnabled : true;
+    }
+
+    public void setEmailEnabled(Boolean emailEnabled) {
+        this.emailEnabled = emailEnabled;
+    }
+
+    public boolean isRecordatoriosCitas() {
+        return recordatoriosCitas != null ? recordatoriosCitas : true;
+    }
+
+    public void setRecordatoriosCitas(Boolean recordatoriosCitas) {
+        this.recordatoriosCitas = recordatoriosCitas;
+    }
+
+    public boolean isRecordatoriosActividades() {
+        return recordatoriosActividades != null ? recordatoriosActividades : true;
+    }
+
+    public void setRecordatoriosActividades(Boolean recordatoriosActividades) {
+        this.recordatoriosActividades = recordatoriosActividades;
+    }
+
+    public boolean isRecordatoriosHabitos() {
+        return recordatoriosHabitos != null ? recordatoriosHabitos : true;
+    }
+
+    public void setRecordatoriosHabitos(Boolean recordatoriosHabitos) {
+        this.recordatoriosHabitos = recordatoriosHabitos;
+    }
+
+    public boolean isNuevasActividades() {
+        return nuevasActividades != null ? nuevasActividades : false;
+    }
+
+    public void setNuevasActividades(Boolean nuevasActividades) {
+        this.nuevasActividades = nuevasActividades;
+    }
+
+    public boolean isMensajesIa() {
+        return mensajesIa != null ? mensajesIa : true;
+    }
+
+    public void setMensajesIa(Boolean mensajesIa) {
+        this.mensajesIa = mensajesIa;
     }
 }
