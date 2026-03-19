@@ -6,14 +6,15 @@ import com.example.microservicionotificaciones.repositorios.UsuarioRepository;
 import com.example.microservicionotificaciones.modelos.Usuario;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
-@Slf4j
 public class NotificacionService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificacionService.class);
 
     @Autowired
     private NotificacionRepository notificacionRepository;
@@ -24,7 +25,10 @@ public class NotificacionService {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    public List<Notificacion> obtenerPorUsuario(UUID usuarioId) {
+    @Autowired
+    private SseNotificationService sseNotificationService;
+
+    public List<Notificacion> obtenerPorUsuario(String usuarioId) {
         return notificacionRepository.findByUsuarioId(usuarioId);
     }
 
@@ -32,7 +36,7 @@ public class NotificacionService {
         return notificacionRepository.findById(id);
     }
 
-    public List<Notificacion> obtenerNoLeidas(UUID usuarioId) {
+    public List<Notificacion> obtenerNoLeidas(String usuarioId) {
         return notificacionRepository.findByUsuarioIdAndLeidaFalse(usuarioId);
     }
 
@@ -46,6 +50,10 @@ public class NotificacionService {
         try {
             guardada = notificacionRepository.save(notificacion);
             log.info("Notificación guardada exitosamente con ID: {}", guardada.getId());
+            
+            // Emitir la notificación por SSE al usuario en tiempo real
+            sseNotificationService.sendNotification(guardada.getUsuarioId(), guardada);
+
         } catch (Exception e) {
             log.error("Error al guardar la notificación en base de datos", e);
             throw e;

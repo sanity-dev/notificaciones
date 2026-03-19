@@ -50,7 +50,8 @@ public class RecuperacionController {
         try {
             System.out.println("====== [DEBUG] Llamando a API Gateway: " + checkUrl + " ======");
             ResponseEntity<Map> response = restTemplate.getForEntity(checkUrl, Map.class);
-            Map<String, Boolean> bodyRes = response.getBody();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> bodyRes = response.getBody();
             System.out.println("====== [DEBUG] Respuesta del API Gateway: " + bodyRes + " ======");
             if (bodyRes == null || !Boolean.TRUE.equals(bodyRes.get("exists"))) {
                 // Por seguridad, no revelamos si el email existe o no

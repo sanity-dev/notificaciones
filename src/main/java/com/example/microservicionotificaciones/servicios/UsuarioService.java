@@ -73,7 +73,7 @@ public class UsuarioService {
     }
 
     // Método auxiliar para buscar usuario por ID
-    public Optional<Usuario> getUsuarioById(java.util.UUID id) {
+    public Optional<Usuario> getUsuarioById(String id) {
         return usuarioRepository.findById(id);
     }
 

@@ -2,14 +2,13 @@ package com.example.microservicionotificaciones.modelos;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.UUID;
 
 @Entity
 @Table(name = "usuarios")
 public class Usuario {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @Column(columnDefinition = "NVARCHAR(255)")
+    private String id;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -28,11 +27,11 @@ public class Usuario {
     }
 
     // --- GETTERS Y SETTERS MANUALES (Adiós Lombok) ---
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 
