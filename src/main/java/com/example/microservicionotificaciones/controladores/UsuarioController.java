@@ -4,6 +4,7 @@ import com.example.microservicionotificaciones.dto.LoginRequestDTO;
 import com.example.microservicionotificaciones.dto.LoginResponseDTO;
 import com.example.microservicionotificaciones.modelos.Usuario;
 import com.example.microservicionotificaciones.servicios.UsuarioService;
+import com.example.microservicionotificaciones.seguridad.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import com.example.microservicionotificaciones.dto.PreferenciasDTO;
@@ -18,6 +19,9 @@ public class UsuarioController {
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private JwtService jwtService;
 
     // 1. REGISTRO (Crear cuenta) - Ruta Pública
     @PostMapping
@@ -39,9 +43,14 @@ public class UsuarioController {
 
     // 3. ACTUALIZAR PREFERENCIAS
     @PutMapping("/{id}/preferencias")
-    public ResponseEntity<?> updatePreferencias(@PathVariable String id, @RequestBody PreferenciasDTO preferenciasDTO) {
+    public ResponseEntity<?> updatePreferencias(
+            @PathVariable String id,
+            @RequestBody PreferenciasDTO preferenciasDTO,
+            @RequestHeader(value = "X-User-Email", required = false) String userEmail,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            Usuario usuarioActualizado = usuarioService.updatePreferencias(id, preferenciasDTO);
+            String email = extractEmail(userEmail, authHeader);
+            Usuario usuarioActualizado = usuarioService.updatePreferenciasOAutoCrear(id, email, preferenciasDTO);
             return ResponseEntity.ok(usuarioActualizado);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -50,20 +59,36 @@ public class UsuarioController {
 
     // 4. OBTENER PREFERENCIAS
     @GetMapping("/{id}/preferencias")
-    public ResponseEntity<?> getPreferencias(@PathVariable String id) {
-        Optional<Usuario> optionalUsuario = usuarioService.getUsuarioById(id);
-        if (optionalUsuario.isPresent()) {
-            Usuario usuario = optionalUsuario.get();
-            PreferenciasDTO dto = new PreferenciasDTO();
-            dto.setPushEnabled(usuario.isPushEnabled());
-            dto.setEmailEnabled(usuario.isEmailEnabled());
-            dto.setRecordatoriosCitas(usuario.isRecordatoriosCitas());
-            dto.setRecordatoriosActividades(usuario.isRecordatoriosActividades());
-            dto.setRecordatoriosHabitos(usuario.isRecordatoriosHabitos());
-            dto.setNuevasActividades(usuario.isNuevasActividades());
-            dto.setMensajesIa(usuario.isMensajesIa());
-            return ResponseEntity.ok(dto);
+    public ResponseEntity<?> getPreferencias(
+            @PathVariable String id,
+            @RequestHeader(value = "X-User-Email", required = false) String userEmail,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        String email = extractEmail(userEmail, authHeader);
+        Usuario usuario = usuarioService.getUsuarioOAutoCrear(id, email);
+        
+        PreferenciasDTO dto = new PreferenciasDTO();
+        dto.setPushEnabled(usuario.isPushEnabled());
+        dto.setEmailEnabled(usuario.isEmailEnabled());
+        dto.setRecordatoriosCitas(usuario.isRecordatoriosCitas());
+        dto.setRecordatoriosActividades(usuario.isRecordatoriosActividades());
+        dto.setRecordatoriosHabitos(usuario.isRecordatoriosHabitos());
+        dto.setNuevasActividades(usuario.isNuevasActividades());
+        dto.setMensajesIa(usuario.isMensajesIa());
+        return ResponseEntity.ok(dto);
+    }
+    
+    private String extractEmail(String headerEmail, String authHeader) {
+        if (headerEmail != null && !headerEmail.isBlank()) {
+            return headerEmail;
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                return jwtService.extractUsername(authHeader.substring(7));
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        return null;
     }
 }
