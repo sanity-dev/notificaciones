@@ -63,21 +63,52 @@ public class HabitosScheduler {
 
         // Generar un JWT válido para autenticarse con el API Gateway
         String token = generarTokenServicio();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + token);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
+        // Paso 1: Obtener la lista de personas del microservicio de usuarios
+        // para mapear email -> idPersona (numérico, que es lo que Euphoria necesita)
+        Map<String, Integer> emailToIdPersona = new java.util.HashMap<>();
+        try {
+            ResponseEntity<List<Map<String, Object>>> personasResponse = restTemplate.exchange(
+                    apiGatewayUrl + "/api/personas",
+                    HttpMethod.GET,
+                    entity,
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+            );
+            List<Map<String, Object>> personas = personasResponse.getBody();
+            if (personas != null) {
+                for (Map<String, Object> persona : personas) {
+                    String correo = (String) persona.get("correo");
+                    Object idObj = persona.get("idPersona");
+                    if (correo != null && idObj != null) {
+                        emailToIdPersona.put(correo.toLowerCase(), ((Number) idObj).intValue());
+                    }
+                }
+            }
+            log.info("Se obtuvieron {} personas del servicio de usuarios", emailToIdPersona.size());
+        } catch (Exception e) {
+            log.error("Error al obtener personas del API Gateway: {}. Abortando revisión de hábitos.", e.getMessage());
+            return;
+        }
+
+        // Paso 2: Para cada usuario local, buscar su idPersona y consultar hábitos
         for (Usuario usuario : usuarios) {
-            // Solo notificamos si el usuario tiene habilitadas las notificaciones de hábitos y push
             if (!usuario.isPushEnabled() || !usuario.isRecordatoriosHabitos()) {
                 continue;
             }
 
-            try {
-                String targetUrl = apiGatewayUrl + "/api/euphoria/reminders/" + usuario.getId();
-                log.info("Consultando hábitos para usuario {} en: {}", usuario.getId(), targetUrl);
+            // Buscar el idPersona numérico usando el email del usuario
+            Integer idPersona = emailToIdPersona.get(usuario.getEmail().toLowerCase());
+            if (idPersona == null) {
+                log.warn("No se encontró idPersona para el usuario {} ({}). Saltando.", usuario.getId(), usuario.getEmail());
+                continue;
+            }
 
-                // Crear headers con el JWT
-                HttpHeaders headers = new HttpHeaders();
-                headers.set("Authorization", "Bearer " + token);
-                HttpEntity<Void> entity = new HttpEntity<>(headers);
+            try {
+                String targetUrl = apiGatewayUrl + "/api/euphoria/reminders/" + idPersona;
+                log.info("Consultando hábitos para usuario {} (idPersona={}) en: {}", usuario.getEmail(), idPersona, targetUrl);
 
                 ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
                         targetUrl,
@@ -91,16 +122,16 @@ public class HabitosScheduler {
                 if (response != null && response.containsKey("reminders")) {
                     List<Map<String, Object>> reminders = (List<Map<String, Object>>) response.get("reminders");
                     if (reminders != null && !reminders.isEmpty()) {
-                        log.info("Se encontraron {} hábitos para el usuario {}", reminders.size(), usuario.getId());
+                        log.info("Se encontraron {} hábitos para el usuario {}", reminders.size(), usuario.getEmail());
                         for (Map<String, Object> habit : reminders) {
                             verificarYNotificarHabito(usuario, habit, currentTimeString);
                         }
                     } else {
-                        log.info("Sin hábitos para el usuario {}", usuario.getId());
+                        log.info("Sin hábitos para el usuario {}", usuario.getEmail());
                     }
                 }
             } catch (Exception e) {
-                log.error("Error al consultar hábitos para el usuario {}: {}", usuario.getId(), e.getMessage());
+                log.error("Error al consultar hábitos para el usuario {}: {}", usuario.getEmail(), e.getMessage());
             }
         }
     }
