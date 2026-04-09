@@ -71,19 +71,31 @@ public class NotificacionService {
         try {
             log.info("Iniciando envío de correo para la notificación ID: {}", notificacion.getId());
 
+            String email;
             Optional<Usuario> optUsuario = usuarioRepository.findById(notificacion.getUsuarioId());
             if (optUsuario.isEmpty()) {
-                log.warn("No se pudo enviar correo: Usuario con ID {} no encontrado", notificacion.getUsuarioId());
-                notificacion.setEstado("FALLIDO");
-                notificacionRepository.save(notificacion);
-                return;
+                // Posible lazy provisioning al vuelo si la ID es un correo válido
+                if (notificacion.getUsuarioId().contains("@")) {
+                    email = notificacion.getUsuarioId();
+                    log.info("Usuario local {} no encontrado, pero es un correo válido. Auto-creando registro para notificaciones...", email);
+                    Usuario nuevo = new Usuario();
+                    nuevo.setId(email);
+                    nuevo.setEmail(email);
+                    nuevo.setNombre(email.split("@")[0]);
+                    nuevo.setPassword("EXTERNAL_USER");
+                    usuarioRepository.save(nuevo);
+                } else {
+                    log.warn("No se pudo enviar correo: Usuario con ID {} no encontrado", notificacion.getUsuarioId());
+                    notificacion.setEstado("FALLIDO");
+                    notificacionRepository.save(notificacion);
+                    return;
+                }
+            } else {
+                email = optUsuario.get().getEmail();
             }
 
-            Usuario usuario = optUsuario.get();
-            String email = usuario.getEmail();
-
             if (email == null || email.isBlank()) {
-                log.warn("El usuario ID {} no tiene un correo configurado", usuario.getId());
+                log.warn("El usuario ID {} no tiene un correo configurado", notificacion.getUsuarioId());
                 notificacion.setEstado("FALLIDO");
                 notificacionRepository.save(notificacion);
                 return;
