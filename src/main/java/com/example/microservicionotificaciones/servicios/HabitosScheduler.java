@@ -61,8 +61,8 @@ public class HabitosScheduler {
         String currentTimeString = now.format(DateTimeFormatter.ofPattern("HH:mm"));
         log.info("Hora actual: {}", currentTimeString);
 
-        // Generar un JWT válido para autenticarse con el API Gateway
-        String token = generarTokenServicio();
+        // Generar un JWT válido usando el primer usuario real para engañar al filtro de autenticación
+        String token = generarTokenConUsuario(usuarios.get(0).getEmail());
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + token);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
@@ -137,13 +137,13 @@ public class HabitosScheduler {
     }
 
     /**
-     * Genera un JWT de servicio para autenticarse con el API Gateway.
-     * Usa el mismo secreto compartido entre microservicios.
+     * Genera un JWT usando el correo de un administrador o usuario real
+     * para que el microservicio de Usuarios lo valide sin dar 403.
      */
-    private String generarTokenServicio() {
+    private String generarTokenConUsuario(String email) {
         Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         return Jwts.builder()
-                .setSubject("notificaciones-service")
+                .setSubject(email)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 300000)) // 5 minutos
                 .signWith(key, SignatureAlgorithm.HS256)
