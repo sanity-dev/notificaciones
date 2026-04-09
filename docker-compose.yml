@@ -30,7 +30,7 @@ services:
     env_file:
       - .env
     environment:
-      - APP_API_GATEWAY_URL=http://3.151.143.108:8080
+      - APP_APIGATEWAY_URL=http://3.151.143.108:8080
       - APP_EUPHORIA_URL=https://euphoria-app.politedune-01b83c33.westus2.azurecontainerapps.io
 
     restart: unless-stopped

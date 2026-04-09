@@ -31,7 +31,7 @@ public class HabitosScheduler {
     @Autowired
     private NotificacionService notificacionService;
 
-    @Value("${app.api-gateway.url:http://localhost:8080}")
+    @Value("${app.apigateway.url:http://localhost:8080}")
     private String apiGatewayUrl;
     
     // Fallback direct url in case API gateway is not reachable
