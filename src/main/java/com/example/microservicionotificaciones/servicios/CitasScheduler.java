@@ -1,7 +1,9 @@
 package com.example.microservicionotificaciones.servicios;
 
+import com.example.microservicionotificaciones.modelos.CitaNotificada;
 import com.example.microservicionotificaciones.modelos.Notificacion;
 import com.example.microservicionotificaciones.modelos.Usuario;
+import com.example.microservicionotificaciones.repositorios.CitaNotificadaRepository;
 import com.example.microservicionotificaciones.repositorios.UsuarioRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -41,6 +43,9 @@ public class CitasScheduler {
     @Autowired
     private NotificacionService notificacionService;
 
+    @Autowired
+    private CitaNotificadaRepository citaNotificadaRepository;
+
     @Value("${app.apigateway.url}")
     private String apiGatewayUrl;
 
@@ -60,14 +65,12 @@ public class CitasScheduler {
         }
 
         LocalDateTime now = LocalDateTime.now(ZoneId.of("America/Bogota"));
-        log.info("Hora actual en Colombia (para citas): {}", now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-
+        
         String token = generarTokenConUsuario(usuarios.get(0).getEmail());
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + token);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        // 1. Obtener todas las personas para mapear idPersona -> email
         Map<Integer, String> idPersonaToEmail = new HashMap<>();
         try {
             ResponseEntity<List<Map<String, Object>>> personasResponse = restTemplate.exchange(
@@ -91,7 +94,6 @@ public class CitasScheduler {
             return;
         }
 
-        // 2. Obtener los especialistas y sus citas
         try {
             ResponseEntity<List<Map<String, Object>>> specialistResponse = restTemplate.exchange(
                     apiGatewayUrl + "/api/specialist",
@@ -107,11 +109,9 @@ public class CitasScheduler {
                     String specialistEmail = (String) specialist.get("email");
                     if (specialistEmail == null) continue;
 
-                    // Verificar preferencias locales si existe
                     boolean notifyTherapist = true;
-                    Usuario terapeutaLocal = null;
                     try {
-                        terapeutaLocal = usuarioRepository.findByEmail(specialistEmail).orElse(null);
+                        Usuario terapeutaLocal = usuarioRepository.findByEmail(specialistEmail).orElse(null);
                         if (terapeutaLocal != null && !terapeutaLocal.isRecordatoriosCitas()) {
                             notifyTherapist = false;
                         }
@@ -121,66 +121,90 @@ public class CitasScheduler {
                     if (citas == null || citas.isEmpty()) continue;
 
                     for (Map<String, Object> cita : citas) {
+                        Object idObj = cita.get("id");
+                        if (idObj == null) continue;
+                        Integer citaId = ((Number) idObj).intValue();
+
                         Object f = cita.get("fecha");
                         if (f == null) continue;
                         
                         String fechaStr = String.valueOf(f);
-                        // Ejemplo: "2026-04-10T15:30:00.000Z"
                         LocalDateTime citaDate;
                         try {
-                            citaDate = LocalDateTime.parse(fechaStr.replace("Z", ""), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                            // Asumimos que viene en UTC o la ajustamos si es necesario.
-                            // Si NestJS guarda en UTC, y here comparamos con America/Bogota?
-                            // Vamos a comparar la diferencia de minutos absoluta para simplificar, 
-                            // suponiendo que está normalizado o restamos/sumamos el offset
-                            // Lo ideal: Parsearla como Instant
                             java.time.Instant instant = java.time.Instant.parse(fechaStr);
                             citaDate = LocalDateTime.ofInstant(instant, ZoneId.of("America/Bogota"));
                         } catch (Exception ex) {
                             continue;
                         }
 
-                        // Calcular diferencia en minutos (ej: si faltan 15 minutos exactos)
-                        long minutosRestantes = ChronoUnit.MINUTES.between(now, citaDate);
-                        
-                        // Notificamos si faltan 15 minutos
-                        if (minutosRestantes == 15) {
-                            String tipoSesion = (String) cita.get("tipoSesion");
+                        CitaNotificada cNotificada = citaNotificadaRepository.findById(citaId).orElse(new CitaNotificada(citaId));
+                        String tipoSesion = (String) cita.get("tipoSesion");
 
-                            // Notificar al Especialista
+                        // Manejar el correo del paciente
+                        String patientEmail = null;
+                        boolean notifyPatient = true;
+                        Object pacienteIDObj = cita.get("pacienteID");
+                        if (pacienteIDObj != null) {
+                            Integer pID = ((Number) pacienteIDObj).intValue();
+                            patientEmail = idPersonaToEmail.get(pID);
+                            if (patientEmail != null) {
+                                Usuario pacienteLocal = usuarioRepository.findByEmail(patientEmail).orElse(null);
+                                if (pacienteLocal != null && !pacienteLocal.isRecordatoriosCitas()) {
+                                    notifyPatient = false;
+                                }
+                            }
+                        }
+
+                        boolean savedChanges = false;
+                        String prettyDate = citaDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
+                        // 1. Notificación de creación
+                        if (!cNotificada.isCreacionNotificada()) {
+                            if (notifyTherapist) {
+                                Notificacion nEspec = new Notificacion();
+                                nEspec.setUsuarioId(specialistEmail);
+                                nEspec.setTitulo("Nueva cita programada");
+                                nEspec.setMensaje("Se ha agendado una nueva sesión (" + tipoSesion + ") para el " + prettyDate);
+                                nEspec.setTipo("AMBOS");
+                                notificacionService.crearNotificacion(nEspec);
+                            }
+                            if (patientEmail != null && notifyPatient) {
+                                Notificacion nPac = new Notificacion();
+                                nPac.setUsuarioId(patientEmail);
+                                nPac.setTitulo("Cita agendada exitosamente");
+                                nPac.setMensaje("Tu sesión (" + tipoSesion + ") ha quedado confirmada para el " + prettyDate);
+                                nPac.setTipo("AMBOS");
+                                notificacionService.crearNotificacion(nPac);
+                            }
+                            cNotificada.setCreacionNotificada(true);
+                            savedChanges = true;
+                        }
+
+                        // 2. Recordatorio 15 minutos antes
+                        long minutosRestantes = ChronoUnit.MINUTES.between(now, citaDate);
+                        if (minutosRestantes > 0 && minutosRestantes <= 15 && !cNotificada.isRecordatorioLanzado()) {
                             if (notifyTherapist) {
                                 Notificacion nEspec = new Notificacion();
                                 nEspec.setUsuarioId(specialistEmail);
                                 nEspec.setTitulo("Recordatorio de Cita");
-                                nEspec.setMensaje("Tu sesión (" + tipoSesion + ") está programada para empezar en 15 minutos.");
+                                nEspec.setMensaje("Tu sesión (" + tipoSesion + ") está programada para empezar en breve (" + prettyDate + ").");
                                 nEspec.setTipo("AMBOS");
                                 notificacionService.crearNotificacion(nEspec);
                             }
-
-                            // Notificar al Paciente
-                            Object pacienteIDObj = cita.get("pacienteID");
-                            if (pacienteIDObj != null) {
-                                Integer pID = ((Number) pacienteIDObj).intValue();
-                                String patientEmail = idPersonaToEmail.get(pID);
-                                
-                                if (patientEmail != null) {
-                                    // Ver preferencias de paciente
-                                    boolean notifyPatient = true;
-                                    Usuario pacienteLocal = usuarioRepository.findByEmail(patientEmail).orElse(null);
-                                    if (pacienteLocal != null && !pacienteLocal.isRecordatoriosCitas()) {
-                                        notifyPatient = false;
-                                    }
-
-                                    if (notifyPatient) {
-                                        Notificacion nPac = new Notificacion();
-                                        nPac.setUsuarioId(patientEmail);
-                                        nPac.setTitulo("Recordatorio de Cita");
-                                        nPac.setMensaje("Tu sesión (" + tipoSesion + ") comienza en 15 minutos.");
-                                        nPac.setTipo("AMBOS");
-                                        notificacionService.crearNotificacion(nPac);
-                                    }
-                                }
+                            if (patientEmail != null && notifyPatient) {
+                                Notificacion nPac = new Notificacion();
+                                nPac.setUsuarioId(patientEmail);
+                                nPac.setTitulo("Recordatorio de Cita");
+                                nPac.setMensaje("Tu sesión (" + tipoSesion + ") va a comenzar pronto (" + prettyDate + ").");
+                                nPac.setTipo("AMBOS");
+                                notificacionService.crearNotificacion(nPac);
                             }
+                            cNotificada.setRecordatorioLanzado(true);
+                            savedChanges = true;
+                        }
+
+                        if (savedChanges) {
+                            citaNotificadaRepository.save(cNotificada);
                         }
                     }
                 }
