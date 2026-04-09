@@ -57,9 +57,10 @@ public class HabitosScheduler {
             return;
         }
 
-        LocalTime now = LocalTime.now();
+        // Usamos la zona horaria de Colombia para que coincida con la hora del usuario
+        LocalTime now = LocalTime.now(java.time.ZoneId.of("America/Bogota"));
         String currentTimeString = now.format(DateTimeFormatter.ofPattern("HH:mm"));
-        log.info("Hora actual: {}", currentTimeString);
+        log.info("Hora actual en Colombia: {}", currentTimeString);
 
         // Generar un JWT válido usando el primer usuario real para engañar al filtro de autenticación
         String token = generarTokenConUsuario(usuarios.get(0).getEmail());
